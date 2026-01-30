@@ -5,10 +5,10 @@ require('./database'); // Importa para garantir que o banco de dados conecte
 const { handleCommand } = require('./commandHandler');
 
 logger.info('Iniciando o bot...');
-
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
+        executablePath: '/usr/bin/chromium-browser',
         headless: true,
         args: [
             '--no-sandbox',
@@ -17,11 +17,11 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--single-process', //--no-sandbox and --disable-gpu are the most important
             '--disable-gpu'
         ],
     }
 });
+
 
 client.on('qr', qr => {
     logger.info('QR Code recebido, escaneie com seu celular!');
