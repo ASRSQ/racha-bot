@@ -6,21 +6,18 @@ const { handleCommand } = require('./commandHandler');
 
 logger.info('Iniciando o bot...');
 const client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: {
-        executablePath: '/usr/bin/chromium-browser',
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu'
-        ],
-    }
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    executablePath: '/usr/bin/chromium',
+    headless: false,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage'
+    ]
+  }
 });
+
 
 
 client.on('qr', qr => {
