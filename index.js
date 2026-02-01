@@ -8,15 +8,10 @@ logger.info('Iniciando o bot...');
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    executablePath: '/usr/bin/chromium',
-    headless: false,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage'
-    ]
+    browserWSEndpoint: process.env.PUPPETEER_BROWSER_WS_ENDPOINT,
   }
 });
+
 
 
 
