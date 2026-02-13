@@ -1,71 +1,130 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
-const P = require('pino')
-const qrcode = require('qrcode-terminal')
-const { handleCommand } = require('./commandHandler')
-require('./database')
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason
+} = require('@whiskeysockets/baileys');
+
+const P = require('pino');
+const qrcode = require('qrcode-terminal');
+const { handleCommand } = require('./commandHandler');
+require('./database');
+
+console.log("🚀 Iniciando Baileys...");
 
 async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info')
+
+    console.log("📂 Carregando estado de autenticação...");
+
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+
+    console.log("🔄 Criando socket...");
 
     const sock = makeWASocket({
-        logger: P({ level: 'silent' }),
-        auth: state
-    })
+        logger: P({ level: 'debug' }), // debug ou trace
+        auth: state,
+        printQRInTerminal: false,
+        browser: ['RachaBot', 'Chrome', '1.0.0']
+    });
 
+    console.log("✅ Socket criado.");
+
+    // ===============================
+    // EVENTO DE CONEXÃO
+    // ===============================
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update
+
+        console.log("📡 connection.update recebido:");
+        console.log(JSON.stringify(update, null, 2));
+
+        const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log('📲 Escaneie o QR Code:')
-            qrcode.generate(qr, { small: true })
+            console.log("📲 QR RECEBIDO!");
+            qrcode.generate(qr, { small: true });
+        }
+
+        if (connection === 'connecting') {
+            console.log("🔄 Conectando...");
+        }
+
+        if (connection === 'open') {
+            console.log("✅ BOT CONECTADO COM SUCESSO!");
         }
 
         if (connection === 'close') {
+            console.log("❌ Conexão fechada!");
+
             const shouldReconnect =
-                lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
-            if (shouldReconnect) startBot()
-        } else if (connection === 'open') {
-            console.log('✅ Bot conectado!')
+                lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+
+            console.log("Reconectar?", shouldReconnect);
+
+            if (shouldReconnect) {
+                console.log("♻️ Tentando reconectar...");
+                startBot();
+            } else {
+                console.log("🔐 Sessão encerrada. Apague a pasta auth_info para gerar novo QR.");
+            }
         }
-    })
+    });
 
-    sock.ev.on('creds.update', saveCreds)
+    // ===============================
+    // SALVAR CREDENCIAIS
+    // ===============================
+    sock.ev.on('creds.update', saveCreds);
 
+    // ===============================
+    // RECEBER MENSAGENS
+    // ===============================
     sock.ev.on('messages.upsert', async ({ messages }) => {
-        const msg = messages[0]
-        if (!msg.message) return
-        if (msg.key.fromMe) return
+
+        console.log("📩 Evento messages.upsert recebido");
+
+        const msg = messages[0];
+        if (!msg.message) return;
+        if (msg.key.fromMe) return;
 
         const messageText =
             msg.message.conversation ||
-            msg.message.extendedTextMessage?.text
+            msg.message.extendedTextMessage?.text;
 
-        if (!messageText) return
+        if (!messageText) return;
 
-        const chatId = msg.key.remoteJid
-        const senderId = msg.key.participant || msg.key.remoteJid
+        const chatId = msg.key.remoteJid;
+        const senderId = msg.key.participant || msg.key.remoteJid;
 
-        // 🔥 ADAPTADOR COMPATÍVEL
+        console.log("Mensagem:", messageText);
+        console.log("Chat:", chatId);
+        console.log("Sender:", senderId);
+
+        // ===============================
+        // ADAPTADOR COMPATÍVEL
+        // ===============================
         const fakeMessage = {
             body: messageText,
             from: chatId,
             author: senderId,
             reply: async (text) => {
-                await sock.sendMessage(chatId, { text })
+                await sock.sendMessage(chatId, { text });
             },
             getChat: async () => ({
                 isGroup: chatId.endsWith('@g.us'),
                 sendMessage: async (text, options = {}) => {
-                    await sock.sendMessage(chatId, { text }, options)
+                    await sock.sendMessage(chatId, { text }, options);
                 }
             }),
             _data: {
-                notifyName: msg.pushName
+                notifyName: msg.pushName || "Jogador"
             }
+        };
+
+        try {
+            await handleCommand(sock, fakeMessage);
+        } catch (err) {
+            console.error("💥 Erro no handleCommand:", err);
         }
 
-        await handleCommand(sock, fakeMessage)
-    })
+    });
 }
 
-startBot()
+startBot();
