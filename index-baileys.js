@@ -19,12 +19,12 @@ async function startBot() {
 
     console.log("🔄 Criando socket...");
 
-    const sock = makeWASocket({
-        logger: P({ level: 'debug' }), // debug ou trace
-        auth: state,
-        printQRInTerminal: false,
-        browser: ['RachaBot', 'Chrome', '1.0.0']
-    });
+const sock = makeWASocket({
+    logger: P({ level: 'debug' }),
+    auth: state,
+    printQRInTerminal: false,
+    browser: ['Windows', 'Chrome', '120.0.0.0']
+});
 
     console.log("✅ Socket criado.");
 
