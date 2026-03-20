@@ -1,7 +1,7 @@
 // index.js
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const logger = require('./logger');
-require('./database'); // garante conexão com banco
+require('./database');
 const { handleCommand } = require('./commandHandler');
 const qrcode = require('qrcode-terminal');
 
@@ -13,6 +13,7 @@ const client = new Client({
     takeoverTimeoutMs: 0,
     puppeteer: {
         headless: true,
+        dumpio: true, // 🔥 LOG DO CHROME
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -24,26 +25,34 @@ const client = new Client({
             '--disable-gpu'
         ],
         timeout: 60000
+        // 🔥 Se precisar, descomente e ajuste:
+        // executablePath: '/usr/bin/chromium-browser'
     }
 });
 
 
-// 🔐 QR CODE
+// 📱 QR CODE
 client.on('qr', (qr) => {
     logger.info('📱 QR Code recebido, escaneie com seu celular!');
     qrcode.generate(qr, { small: true });
 });
 
 
-// 🔐 AUTENTICADO
+// 🔐 AUTENTICAÇÃO
 client.on('authenticated', () => {
     logger.info('🔐 Autenticado com sucesso!');
 });
 
 
-// 📶 CARREGAMENTO
+// 📶 LOADING DO WHATSAPP
 client.on('loading_screen', (percent, message) => {
-    logger.info(`📶 Carregando WhatsApp: ${percent}% - ${message}`);
+    logger.info(`📶 ${percent}% - ${message}`);
+});
+
+
+// 🔄 MUDANÇA DE ESTADO
+client.on('change_state', (state) => {
+    logger.info(`🔄 Estado mudou: ${state}`);
 });
 
 
@@ -52,10 +61,13 @@ client.on('ready', async () => {
     logger.info('✅ Bot conectado e pronto!');
 
     try {
+        // espera extra (resolve travamento comum)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         const info = client.info;
-        logger.info(`📱 Número conectado: ${info.wid.user}`);
+        logger.info(`📱 Número conectado: ${info?.wid?.user}`);
     } catch (err) {
-        logger.error('Erro ao pegar info do cliente:', err);
+        logger.error('Erro ao obter info:', err);
     }
 });
 
@@ -63,10 +75,11 @@ client.on('ready', async () => {
 // ⚠️ DESCONECTADO
 client.on('disconnected', (reason) => {
     logger.warn(`⚠️ Bot desconectado: ${reason}`);
-    
-    // reconectar automaticamente
+
     logger.info('🔄 Tentando reconectar...');
-    client.initialize();
+    setTimeout(() => {
+        client.initialize();
+    }, 5000);
 });
 
 
@@ -80,7 +93,7 @@ client.on('message', async (message) => {
 });
 
 
-// ❌ ERROS GERAIS
+// ❌ ERROS GLOBAIS
 process.on('unhandledRejection', (reason) => {
     logger.error('Unhandled Rejection:', reason);
 });
@@ -90,5 +103,5 @@ process.on('uncaughtException', (err) => {
 });
 
 
-// 🚀 INICIALIZAÇÃO
+// 🚀 START
 client.initialize();
