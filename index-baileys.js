@@ -1,7 +1,8 @@
 const {
     default: makeWASocket,
     useMultiFileAuthState,
-    DisconnectReason
+    DisconnectReason,
+    fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 
 const P = require('pino');
@@ -14,32 +15,34 @@ console.log("🚀 Iniciando Baileys...");
 async function startBot() {
 
     console.log("📂 Carregando estado de autenticação...");
-
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+
+    const { version } = await fetchLatestBaileysVersion();
 
     console.log("🔄 Criando socket...");
 
-const sock = makeWASocket({
-    logger: P({ level: 'debug' }),
-    auth: state,
-    printQRInTerminal: false,
-    browser: ['Windows', 'Chrome', '120.0.0.0']
-});
+    const sock = makeWASocket({
+        version,
+        logger: P({ level: 'silent' }),
+        auth: state,
+        printQRInTerminal: false,
+
+        // 🔥 FINGERPRINT CORRIGIDO
+        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+
+        // 🔥 evita problemas de sync
+        syncFullHistory: false,
+        markOnlineOnConnect: true
+    });
 
     console.log("✅ Socket criado.");
 
-    // ===============================
-    // EVENTO DE CONEXÃO
-    // ===============================
     sock.ev.on('connection.update', (update) => {
-
-        console.log("📡 connection.update recebido:");
-        console.log(JSON.stringify(update, null, 2));
 
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log("📲 QR RECEBIDO!");
+            console.log("📲 Escaneie o QR abaixo:");
             qrcode.generate(qr, { small: true });
         }
 
@@ -54,31 +57,25 @@ const sock = makeWASocket({
         if (connection === 'close') {
             console.log("❌ Conexão fechada!");
 
-            const shouldReconnect =
-                lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            const statusCode = lastDisconnect?.error?.output?.statusCode;
 
-            console.log("Reconectar?", shouldReconnect);
+            console.log("Código:", statusCode);
+
+            const shouldReconnect =
+                statusCode !== DisconnectReason.loggedOut;
 
             if (shouldReconnect) {
-                console.log("♻️ Tentando reconectar...");
-                startBot();
+                console.log("♻️ Reconectando em 5s...");
+                setTimeout(() => startBot(), 5000);
             } else {
-                console.log("🔐 Sessão encerrada. Apague a pasta auth_info para gerar novo QR.");
+                console.log("🔐 Sessão inválida. Apague a pasta auth_info.");
             }
         }
     });
 
-    // ===============================
-    // SALVAR CREDENCIAIS
-    // ===============================
     sock.ev.on('creds.update', saveCreds);
 
-    // ===============================
-    // RECEBER MENSAGENS
-    // ===============================
     sock.ev.on('messages.upsert', async ({ messages }) => {
-
-        console.log("📩 Evento messages.upsert recebido");
 
         const msg = messages[0];
         if (!msg.message) return;
@@ -93,13 +90,8 @@ const sock = makeWASocket({
         const chatId = msg.key.remoteJid;
         const senderId = msg.key.participant || msg.key.remoteJid;
 
-        console.log("Mensagem:", messageText);
-        console.log("Chat:", chatId);
-        console.log("Sender:", senderId);
+        console.log(`📩 ${senderId}: ${messageText}`);
 
-        // ===============================
-        // ADAPTADOR COMPATÍVEL
-        // ===============================
         const fakeMessage = {
             body: messageText,
             from: chatId,
@@ -121,7 +113,7 @@ const sock = makeWASocket({
         try {
             await handleCommand(sock, fakeMessage);
         } catch (err) {
-            console.error("💥 Erro no handleCommand:", err);
+            console.error("💥 Erro:", err);
         }
 
     });
