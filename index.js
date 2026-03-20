@@ -1,13 +1,16 @@
 // index.js
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const logger = require('./logger');
-require('./database'); // Importa para garantir que o banco de dados conecte
+require('./database'); // garante conexão com banco
 const { handleCommand } = require('./commandHandler');
+const qrcode = require('qrcode-terminal');
 
-logger.info('Iniciando o bot...');
+logger.info('🚀 Iniciando o bot...');
 
 const client = new Client({
     authStrategy: new LocalAuth(),
+    takeoverOnConflict: true,
+    takeoverTimeoutMs: 0,
     puppeteer: {
         headless: true,
         args: [
@@ -17,29 +20,75 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--single-process', //--no-sandbox and --disable-gpu are the most important
+            '--single-process',
             '--disable-gpu'
         ],
+        timeout: 60000
     }
 });
 
-client.on('qr', qr => {
-    logger.info('QR Code recebido, escaneie com seu celular!');
-    const qrcode = require('qrcode-terminal');
+
+// 🔐 QR CODE
+client.on('qr', (qr) => {
+    logger.info('📱 QR Code recebido, escaneie com seu celular!');
     qrcode.generate(qr, { small: true });
 });
 
-client.on('ready', () => {
-    logger.info('✅ Bot conectado e pronto para receber comandos!');
+
+// 🔐 AUTENTICADO
+client.on('authenticated', () => {
+    logger.info('🔐 Autenticado com sucesso!');
 });
 
+
+// 📶 CARREGAMENTO
+client.on('loading_screen', (percent, message) => {
+    logger.info(`📶 Carregando WhatsApp: ${percent}% - ${message}`);
+});
+
+
+// ✅ PRONTO
+client.on('ready', async () => {
+    logger.info('✅ Bot conectado e pronto!');
+
+    try {
+        const info = client.info;
+        logger.info(`📱 Número conectado: ${info.wid.user}`);
+    } catch (err) {
+        logger.error('Erro ao pegar info do cliente:', err);
+    }
+});
+
+
+// ⚠️ DESCONECTADO
 client.on('disconnected', (reason) => {
-    logger.warn(`Bot desconectado: ${reason}`);
+    logger.warn(`⚠️ Bot desconectado: ${reason}`);
+    
+    // reconectar automaticamente
+    logger.info('🔄 Tentando reconectar...');
+    client.initialize();
 });
 
-// Delega todo o processamento de mensagens para o commandHandler
-client.on('message_create', (message) => {
-    handleCommand(client, message);
+
+// 💬 MENSAGENS
+client.on('message', async (message) => {
+    try {
+        await handleCommand(client, message);
+    } catch (err) {
+        logger.error('Erro ao processar mensagem:', err);
+    }
 });
 
+
+// ❌ ERROS GERAIS
+process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception:', err);
+});
+
+
+// 🚀 INICIALIZAÇÃO
 client.initialize();
