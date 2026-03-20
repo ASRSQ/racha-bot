@@ -12,21 +12,19 @@ const client = new Client({
     takeoverOnConflict: true,
     takeoverTimeoutMs: 0,
     puppeteer: {
-        headless: true,
-        dumpio: true, // 🔥 LOG DO CHROME
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu'
-        ],
-        timeout: 60000
-        // 🔥 Se precisar, descomente e ajuste:
-        // executablePath: '/usr/bin/chromium-browser'
-    }
+    headless: true,
+    executablePath: '/usr/bin/chromium-browser', // 👈 MUITO IMPORTANTE
+    dumpio: true,
+    args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+    ],
+}
 });
 
 
