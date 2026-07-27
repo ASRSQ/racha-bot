@@ -254,7 +254,36 @@ function atualizarPosicao(telefone, posicao) {
 
 }
 
+function adicionarJogadorPrivado(nome, telefone, tipo, pago = 0) {
 
+    return new Promise((resolve, reject) => {
+
+        db.run(
+
+            `INSERT INTO jogadores
+            (nome_jogador, status_pagamento, tipo_jogador, adicionado_por)
+            VALUES (?, ?, ?, ?)`,
+
+            [
+                nome,
+                pago,
+                tipo,
+                telefone
+            ],
+
+            function(err){
+
+                if(err) return reject(err);
+
+                resolve(this.lastID);
+
+            }
+
+        );
+
+    });
+
+}
 
 
 
@@ -270,6 +299,8 @@ module.exports = {
 
     atualizarNome,
 
-    atualizarPosicao
+    atualizarPosicao,
+    
+        adicionarJogadorPrivado
 
 };

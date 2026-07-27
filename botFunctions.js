@@ -34,6 +34,7 @@ async function addToQueue(taskFn) {
  * Adiciona um jogador como linha/goleiro ou manda para a reserva se cheio.
  * Se porOutro=true, ajusta a mensagem informando quem adicionou.
  */
+
 function adicionarJogadorInterno(nome, quemAdicionouId, tipoDesejado, chat, message, senderName, porOutro = false) {
   db.get('SELECT max_linha, max_goleiros FROM partida_info WHERE id = 1', (err, limits) => {
     if (err || !limits) {
