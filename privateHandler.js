@@ -1,5 +1,11 @@
 const db = require('./database');
 
+// Estas funções já existem no seu projeto
+const {
+    adicionarJogador,
+    enviarLista
+} = require('./botFunctions');
+
 async function handlePrivateMessage(sock, message) {
 
     const telefone = message.from;
@@ -16,27 +22,27 @@ async function handlePrivateMessage(sock, message) {
 
         case "MENU":
 
-            if (texto.toLowerCase() === "menu") {
-
-                await message.reply(`👋 Bem-vindo!
-
-1️⃣ Entrar no racha
-
-Digite 1 para continuar.`);
-
-                await db.atualizarEstado(telefone, "AGUARDANDO_OPCAO");
+            if (texto.toLowerCase() !== "menu") {
+                return message.reply("Digite *menu* para iniciar.");
             }
+
+            await message.reply(`👋 Bem-vindo ao Racha!
+
+Digite 1 para iniciar sua inscrição.`);
+
+            await db.atualizarEstado(telefone, "AGUARDANDO_OPCAO");
 
             break;
 
         case "AGUARDANDO_OPCAO":
 
-            if (texto === "1") {
-
-                await message.reply("Informe seu nome:");
-
-                await db.atualizarEstado(telefone, "AGUARDANDO_NOME");
+            if (texto !== "1") {
+                return message.reply("Digite apenas *1*.");
             }
+
+            await message.reply("Informe seu nome:");
+
+            await db.atualizarEstado(telefone, "AGUARDANDO_NOME");
 
             break;
 
@@ -44,29 +50,84 @@ Digite 1 para continuar.`);
 
             await db.atualizarNome(telefone, texto);
 
-            await message.reply("Agora informe sua posição:");
+            await message.reply(`Agora escolha:
 
-            await db.atualizarEstado(telefone, "AGUARDANDO_POSICAO");
+1️⃣ Jogador de Linha
+
+2️⃣ Goleiro`);
+
+            await db.atualizarEstado(telefone, "AGUARDANDO_TIPO");
 
             break;
 
-        case "AGUARDANDO_POSICAO":
+        case "AGUARDANDO_TIPO":
 
-            await db.atualizarPosicao(telefone, texto);
+            if (texto === "2") {
 
-            await message.reply(`✅ Cadastro concluído!
+                inscricao = await db.getInscricao(telefone);
 
-Nome: ${inscricao.nome || texto}
-Posição: ${texto}
+                // adiciona direto
+                await adicionarJogador(
+                    inscricao.nome,
+                    "goleiro",
+                    telefone
+                );
 
-Em breve será gerado seu PIX.`);
+                await message.reply(`✅ Você foi inscrito como GOLEIRO.
 
-            await db.atualizarEstado(telefone, "AGUARDANDO_PAGAMENTO");
+Não é necessário realizar pagamento.
+
+Nos vemos no racha! 🥅`);
+
+                await enviarLista(sock);
+
+                await db.atualizarEstado(telefone, "FINALIZADO");
+
+                return;
+            }
+
+            if (texto === "1") {
+
+                await db.atualizarPosicao(telefone, "linha");
+
+                await message.reply(`💰 Você foi cadastrado como jogador de linha.
+
+Agora vou gerar seu PIX.
+
+Aguarde alguns segundos...`);
+
+                await db.atualizarEstado(
+                    telefone,
+                    "AGUARDANDO_PAGAMENTO"
+                );
+
+                return;
+            }
+
+            await message.reply("Digite 1 ou 2.");
+
+            break;
+
+        case "AGUARDANDO_PAGAMENTO":
+
+            await message.reply(`Seu PIX ainda está sendo aguardado.
+
+Assim que o pagamento for aprovado você entrará automaticamente na lista.`);
+
+            break;
+
+        case "FINALIZADO":
+
+            await message.reply("Sua inscrição já foi concluída.");
 
             break;
 
         default:
+
+            await db.atualizarEstado(telefone, "MENU");
+
             await message.reply("Digite *menu*.");
+
     }
 
 }
