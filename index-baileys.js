@@ -8,6 +8,7 @@ const {
 const P = require('pino');
 const qrcode = require('qrcode-terminal');
 const { handleCommand } = require('./commandHandler');
+const { handlePrivateMessage } = require('./privateHandler');
 require('./database');
 
 console.log("🚀 Iniciando Baileys...");
@@ -110,11 +111,19 @@ async function startBot() {
             }
         };
 
-        try {
-            await handleCommand(sock, fakeMessage);
-        } catch (err) {
-            console.error("💥 Erro:", err);
-        }
+       try {
+
+    if (chatId.endsWith('@g.us')) {
+        await handleCommand(sock, fakeMessage);
+    } else {
+        await handlePrivateMessage(sock, fakeMessage);
+    }
+
+} catch (err) {
+
+    console.error("💥 Erro:", err);
+
+}
 
     });
 }

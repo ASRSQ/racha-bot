@@ -1,28 +1,34 @@
-const db = require('./database');
+async function handlePrivateMessage(sock, message) {
 
-async function handlePrivateMessage(client, message) {
+    const texto = message.body.trim().toLowerCase();
 
-    const chat = await message.getChat();
+    if (texto === "menu") {
 
-    // Se for grupo não faz nada
-    if (chat.isGroup) return;
+        return message.reply(`👋 Olá!
 
-    const telefone = message.from;
-    const texto = message.body.trim();
+Bem-vindo ao Racha!
 
-    console.log("Mensagem privada:");
-    console.log(telefone);
-    console.log(texto);
+1️⃣ Entrar no racha
 
-    await message.reply(
-`👋 Olá!
+2️⃣ Minha inscrição
 
-Este é o atendimento do Racha.
+Digite o número da opção.`);
 
-Digite:
+    }
 
-menu`
-    );
+    if (texto === "1") {
+
+        return message.reply("Informe seu nome completo:");
+
+    }
+
+    if (texto === "2") {
+
+        return message.reply("Sua inscrição ainda não foi encontrada.");
+
+    }
+
+    return message.reply("Digite *menu*.");
 
 }
 
