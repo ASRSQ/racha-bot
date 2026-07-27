@@ -3,6 +3,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const logger = require('./logger');
 require('./database');
 const { handleCommand } = require('./commandHandler');
+const { handlePrivateMessage } = require('./privateHandler');
 const qrcode = require('qrcode-terminal');
 
 logger.info('🚀 Iniciando o bot...');
@@ -82,11 +83,23 @@ client.on('disconnected', (reason) => {
 
 // 💬 MENSAGENS
 client.on('message', async (message) => {
+
     try {
-        await handleCommand(client, message);
+
+        const chat = await message.getChat();
+
+        if (chat.isGroup) {
+            await handleCommand(client, message);
+        } else {
+            await handlePrivateMessage(client, message);
+        }
+
     } catch (err) {
-        logger.error('Erro ao processar mensagem:', err);
+
+        logger.error(err.stack || err.message);
+
     }
+
 });
 
 
