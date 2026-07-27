@@ -87,86 +87,94 @@ function adicionarJogadorInterno(nome, quemAdicionouId, tipoDesejado, chat, mess
  * Promove o primeiro reserva para a lista principal quando houver vaga
  * ou notifica o próximo da fila se ainda não houver.
  */
-function promoverReservaInterno(chat, client) {
-  logger.info("Verificando se há reservas para promover...");
+async function promoverReservaInterno(chat) {
 
-  db.get('SELECT * FROM jogadores WHERE tipo_jogador = "reserva" ORDER BY id ASC LIMIT 1', [], (err, reserva) => {
-    if (err) { logger.error(`Erro ao buscar reserva: ${err.message}`); return; }
-    if (!reserva) {
-      logger.info("Nenhum jogador na lista de reserva para promover.");
-      return enviarListaInterno(chat);
-    }
+    logger.info("Verificando se há reservas para promover...");
 
-    db.get('SELECT max_linha FROM partida_info WHERE id = 1', (err2, limits) => {
-      if (err2 || !limits) {
-        logger.error(`Erro ao buscar limites para promoção: ${err2 ? err2.message : 'Nenhum limite encontrado'}`);
-        return;
-      }
+    db.get(
+        'SELECT * FROM jogadores WHERE tipo_jogador = "reserva" ORDER BY id ASC LIMIT 1',
+        [],
+        (err, reserva) => {
 
-      db.get('SELECT COUNT(*) as count FROM jogadores WHERE tipo_jogador = "linha"', [], (err3, rowLinha) => {
-        if (err3) { logger.error(`Erro ao contar jogadores de linha: ${err3.message}`); return; }
-
-        if (rowLinha.count < limits.max_linha) {
-          // Promove o primeiro da reserva
-          db.run('UPDATE jogadores SET tipo_jogador = "linha" WHERE id = ?', [reserva.id], (err4) => {
-            if (err4) { logger.error(`Erro ao promover ${reserva.nome_jogador}: ${err4.message}`); return; }
-            logger.info(`Jogador ${reserva.nome_jogador} promovido para a lista principal.`);
-
-            const responsavelId = reserva.adicionado_por;
-            client.getContactById(responsavelId).then(contact => {
-              const nomeResponsavel = contact.pushname || contact.name || '';
-              const mentionId = contact.id?._serialized; // ex: '558896091894@c.us'
-
-              let promotionMessage;
-              if ((nomeResponsavel || '').toLowerCase() === (reserva.nome_jogador || '').toLowerCase()) {
-                promotionMessage = `🎉 Parabéns, *@${contact.id.user}*! Você foi promovido da reserva para a lista principal! Prepare a chuteira!`;
-              } else {
-                promotionMessage = `📢 Atenção, *@${contact.id.user}*! O jogador *${reserva.nome_jogador}* (adicionado por você) foi promovido para a lista principal!`;
-              }
-
-              if (mentionId) {
-                chat.sendMessage(promotionMessage, { mentions: [mentionId] }).then(() => {
-                  enviarListaInterno(chat);
-                });
-              } else {
-                chat.sendMessage(promotionMessage).then(() => enviarListaInterno(chat));
-              }
-            }).catch(e => {
-              logger.error(`Não foi possível buscar o contato para a notificação de promoção: ${e.message}`);
-              chat.sendMessage(`📢 Vaga liberada! O jogador *${reserva.nome_jogador}* foi promovido da reserva para a lista principal!`);
-              enviarListaInterno(chat);
-            });
-          });
-        } else {
-          // Sem vaga ainda: notifica o próximo da fila
-          logger.info(`Nenhuma vaga disponível. Notificando o próximo da reserva: ${reserva.nome_jogador}`);
-          const responsavelId = reserva.adicionado_por;
-
-          client.getContactById(responsavelId).then(contact => {
-            const nomeResponsavel = contact.pushname || contact.name || '';
-            const mentionId = contact.id?._serialized; // ex: '558896091894@c.us'
-            let notificacao;
-
-            if ((nomeResponsavel || '').toLowerCase() === (reserva.nome_jogador || '').toLowerCase()) {
-              notificacao = `🔔 Atenção, *@${contact.id.user}*! Você é o próximo na lista de reserva. Se não for mais jogar, digite \`!sair\` para liberar seu lugar na fila.`;
-            } else {
-              notificacao = `🔔 Atenção, *@${contact.id.user}*! O jogador *${reserva.nome_jogador}* (adicionado por você) é o próximo da fila.\n\nCaso ele não vá mais, use o comando \`!remover ${reserva.nome_jogador}\` para liberar o lugar.`;
+            if (err) {
+                logger.error(err.message);
+                return;
             }
 
-            if (mentionId) {
-              chat.sendMessage(notificacao, { mentions: [mentionId] });
-            } else {
-              chat.sendMessage(notificacao);
+            if (!reserva) {
+                logger.info("Nenhum jogador na reserva.");
+                return enviarListaInterno(chat);
             }
-          }).catch(e => {
-            logger.error(`Não foi possível buscar o contato ${responsavelId} para notificar. Erro: ${e.message}`);
-          });
 
-          enviarListaInterno(chat);
+            db.get(
+                'SELECT max_linha FROM partida_info WHERE id = 1',
+                [],
+                (err2, limits) => {
+
+                    if (err2 || !limits) {
+                        logger.error(err2?.message || "Limites não encontrados");
+                        return;
+                    }
+
+                    db.get(
+                        'SELECT COUNT(*) AS count FROM jogadores WHERE tipo_jogador="linha"',
+                        [],
+                        (err3, rowLinha) => {
+
+                            if (err3) {
+                                logger.error(err3.message);
+                                return;
+                            }
+
+                            // Existe vaga
+                            if (rowLinha.count < limits.max_linha) {
+
+                                db.run(
+                                    'UPDATE jogadores SET tipo_jogador="linha" WHERE id=?',
+                                    [reserva.id],
+                                    async (err4) => {
+
+                                        if (err4) {
+                                            logger.error(err4.message);
+                                            return;
+                                        }
+
+                                        logger.info(
+                                            `${reserva.nome_jogador} promovido.`
+                                        );
+
+                                        await chat.sendMessage(
+                                            `🎉 *${reserva.nome_jogador}* foi promovido da lista de reserva para a lista principal!`
+                                        );
+
+                                        await enviarListaInterno(chat);
+
+                                    }
+                                );
+
+                            } else {
+
+                                logger.info(
+                                    `Próximo da fila: ${reserva.nome_jogador}`
+                                );
+
+                                chat.sendMessage(
+                                    `🔔 O próximo da fila é *${reserva.nome_jogador}*.`
+                                );
+
+                                enviarListaInterno(chat);
+
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
         }
-      });
-    });
-  });
+    );
+
 }
 
 /**
