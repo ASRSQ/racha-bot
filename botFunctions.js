@@ -2,7 +2,23 @@
 const db = require('./database');
 const logger = require('./logger');
 const rachaService = require('./rachaService');
+function dbGet(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+        });
+    });
+}
 
+function dbRun(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) {
+            if (err) return reject(err);
+            resolve(this);
+        });
+    });
+}
 /**
  * Fila simples (concurrency = 1) sem dependências externas.
  * Executa as tarefas em série; erros são logados e a fila continua.
@@ -36,51 +52,93 @@ async function addToQueue(taskFn) {
  * Se porOutro=true, ajusta a mensagem informando quem adicionou.
  */
 
-function adicionarJogadorInterno(nome, quemAdicionouId, tipoDesejado, chat, message, senderName, porOutro = false) {
-  db.get('SELECT max_linha, max_goleiros FROM partida_info WHERE id = 1', (err, limits) => {
-    if (err || !limits) {
-      logger.error(`Não foi possível buscar os limites de vagas: ${err ? err.message : 'Nenhum limite encontrado'}`);
-      return message.reply("Erro: Não foi possível verificar as vagas. Avise o admin.");
+async function adicionarJogadorInterno(
+    nome,
+    quemAdicionouId,
+    tipoDesejado,
+    chat,
+    message,
+    senderName,
+    porOutro = false
+) {
+
+    try {
+
+        const limits = await dbGet(
+            'SELECT max_linha, max_goleiros FROM partida_info WHERE id = 1'
+        );
+
+        if (!limits) {
+            return message.reply(
+                "Erro ao consultar as vagas."
+            );
+        }
+
+        const tipoTabela =
+            tipoDesejado === "linha"
+                ? "linha"
+                : "goleiro";
+
+        const limite =
+            tipoDesejado === "linha"
+                ? limits.max_linha
+                : limits.max_goleiros;
+
+        const row = await dbGet(
+            "SELECT COUNT(*) AS count FROM jogadores WHERE tipo_jogador=?",
+            [tipoTabela]
+        );
+
+        let tipoFinal = tipoDesejado;
+
+        let resposta;
+
+        if (row.count >= limite) {
+
+            tipoFinal = "reserva";
+
+            resposta =
+                `⚠️ A lista de ${tipoTabela}s está cheia.\n\n*${nome}* entrou na reserva.`;
+
+        } else {
+
+            resposta =
+                `✅ *${nome}* entrou na lista de ${tipoTabela}s.`;
+
+        }
+
+        if (porOutro) {
+
+            resposta =
+                `${senderName} adicionou *${nome}* na lista de ${tipoFinal}.`;
+
+        }
+
+        await dbRun(
+            `INSERT INTO jogadores
+            (nome_jogador,adicionado_por,tipo_jogador)
+            VALUES(?,?,?)`,
+            [
+                nome,
+                quemAdicionouId,
+                tipoFinal
+            ]
+        );
+
+        await message.reply(resposta);
+
+        await enviarListaInterno(chat);
+
+    } catch (err) {
+
+        logger.error(err);
+
+        await message.reply(
+            "Este nome já existe ou ocorreu um erro."
+        );
+
     }
 
-    const tabelaVerificar = (tipoDesejado === 'linha') ? 'linha' : 'goleiro';
-    const limiteVagas = (tipoDesejado === 'linha') ? limits.max_linha : limits.max_goleiros;
-
-    db.get(`SELECT COUNT(*) as count FROM jogadores WHERE tipo_jogador = ?`, [tabelaVerificar], (err2, row) => {
-      if (err2) { logger.error(err2.message); return; }
-      if (!row || typeof row.count === 'undefined') {
-        logger.error(`Resultado inesperado da contagem: ${row}`);
-        return;
-      }
-
-      let tipoFinal = tipoDesejado;
-      let resposta;
-      if (row.count >= limiteVagas) {
-        tipoFinal = 'reserva';
-        resposta = `Atenção! A lista de ${tabelaVerificar}s está cheia. *${nome}* foi adicionado à *lista de reserva*.`;
-      } else {
-        resposta = `Boa! *${nome}* foi adicionado à lista de ${tabelaVerificar}s. 👍`;
-      }
-      if (porOutro) {
-        resposta = `${senderName} adicionou *${nome}* à lista de ${tipoFinal}s.`;
-      }
-
-      db.run(
-        'INSERT INTO jogadores (nome_jogador, adicionado_por, tipo_jogador) VALUES (?, ?, ?)',
-        [nome, quemAdicionouId, tipoFinal],
-        (err3) => {
-          if (err3) {
-            logger.error(`Erro ao inserir jogador ${nome}: ${err3.message}`);
-            return message.reply("Este nome já está na lista ou ocorreu um erro.");
-          }
-          // Atualiza lista dentro da mesma tarefa para manter ordem
-          enviarListaInterno(chat);
-        }
-      );
-
-      message.reply(resposta);
-    });
-  });
 }
 
 /**
