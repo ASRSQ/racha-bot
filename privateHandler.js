@@ -1,34 +1,73 @@
+const db = require('./database');
+
 async function handlePrivateMessage(sock, message) {
 
-    const texto = message.body.trim().toLowerCase();
+    const telefone = message.from;
+    const texto = message.body.trim();
 
-    if (texto === "menu") {
+    let inscricao = await db.getInscricao(telefone);
 
-        return message.reply(`👋 Olá!
+    if (!inscricao) {
+        await db.criarInscricao(telefone);
+        inscricao = await db.getInscricao(telefone);
+    }
 
-Bem-vindo ao Racha!
+    switch (inscricao.estado) {
+
+        case "MENU":
+
+            if (texto.toLowerCase() === "menu") {
+
+                await message.reply(`👋 Bem-vindo!
 
 1️⃣ Entrar no racha
 
-2️⃣ Minha inscrição
+Digite 1 para continuar.`);
 
-Digite o número da opção.`);
+                await db.atualizarEstado(telefone, "AGUARDANDO_OPCAO");
+            }
 
+            break;
+
+        case "AGUARDANDO_OPCAO":
+
+            if (texto === "1") {
+
+                await message.reply("Informe seu nome:");
+
+                await db.atualizarEstado(telefone, "AGUARDANDO_NOME");
+            }
+
+            break;
+
+        case "AGUARDANDO_NOME":
+
+            await db.atualizarNome(telefone, texto);
+
+            await message.reply("Agora informe sua posição:");
+
+            await db.atualizarEstado(telefone, "AGUARDANDO_POSICAO");
+
+            break;
+
+        case "AGUARDANDO_POSICAO":
+
+            await db.atualizarPosicao(telefone, texto);
+
+            await message.reply(`✅ Cadastro concluído!
+
+Nome: ${inscricao.nome || texto}
+Posição: ${texto}
+
+Em breve será gerado seu PIX.`);
+
+            await db.atualizarEstado(telefone, "AGUARDANDO_PAGAMENTO");
+
+            break;
+
+        default:
+            await message.reply("Digite *menu*.");
     }
-
-    if (texto === "1") {
-
-        return message.reply("Informe seu nome completo:");
-
-    }
-
-    if (texto === "2") {
-
-        return message.reply("Sua inscrição ainda não foi encontrada.");
-
-    }
-
-    return message.reply("Digite *menu*.");
 
 }
 
