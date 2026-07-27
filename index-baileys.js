@@ -9,6 +9,7 @@ const P = require('pino');
 const qrcode = require('qrcode-terminal');
 const { handleCommand } = require('./commandHandler');
 const { handlePrivateMessage } = require('./privateHandler');
+const whatsappService = require('./whatsappService');
 require('./database');
 
 console.log("🚀 Iniciando Baileys...");

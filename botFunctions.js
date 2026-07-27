@@ -1,6 +1,7 @@
 // botFunctions.js
 const db = require('./database');
 const logger = require('./logger');
+const rachaService = require('./rachaService');
 
 /**
  * Fila simples (concurrency = 1) sem dependências externas.
@@ -172,88 +173,24 @@ function promoverReservaInterno(chat, client) {
  * Monta e envia a lista formatada de linha/goleiros/reservas.
  */
 async function enviarListaInterno(chat) {
-  try {
-    const getInfo = new Promise((resolve, reject) => {
-      db.get(
-        'SELECT titulo, data_hora, max_linha, max_goleiros FROM partida_info WHERE id = 1',
-        [],
-        (err, row) => {
-          if (err) return reject(err);
-          resolve(row || { titulo: 'Racha', data_hora: 'A definir', max_linha: 22, max_goleiros: 2 });
-        }
-      );
-    });
 
-    const getLinha = new Promise((resolve, reject) => {
-      db.all('SELECT * FROM jogadores WHERE tipo_jogador = "linha" ORDER BY id', [], (err, rows) => {
-        if (err) reject(err); else resolve(rows);
-      });
-    });
+    try {
 
-    const getGoleiros = new Promise((resolve, reject) => {
-      db.all('SELECT * FROM jogadores WHERE tipo_jogador = "goleiro" ORDER BY id', [], (err, rows) => {
-        if (err) reject(err); else resolve(rows);
-      });
-    });
+        const texto = await rachaService.gerarListaTexto();
 
-    const getReservas = new Promise((resolve, reject) => {
-      db.all('SELECT * FROM jogadores WHERE tipo_jogador = "reserva" ORDER BY id', [], (err, rows) => {
-        if (err) reject(err); else resolve(rows);
-      });
-    });
+        await chat.sendMessage(texto);
 
-    const [info, jogadoresLinha, goleiros, reservas] = await Promise.all([
-      getInfo, getLinha, getGoleiros, getReservas
-    ]);
+    } catch (err) {
 
-    let listaFormatada = `⚽ *${info.titulo}*\n🗓️ *Data:* ${info.data_hora}\n\n`;
+        logger.error(err);
 
-    listaFormatada += `*Jogadores de Linha (${jogadoresLinha.length}/${info.max_linha})*\n`;
-    for (let i = 0; i < info.max_linha; i++) {
-      if (i < jogadoresLinha.length) {
-        const jogador = jogadoresLinha[i];
-        const pago = jogador.status_pagamento === 1 ? '✅' : '...';
-        const nomeExibido = jogador.nome_jogador.length > 10
-          ? jogador.nome_jogador.slice(0, 10) + '…'
-          : jogador.nome_jogador;
-        listaFormatada += `${i + 1}. ${nomeExibido} - Pgto: ${pago}\n`;
-      } else {
-        listaFormatada += `${i + 1}. ...\n`;
-      }
+        await chat.sendMessage(
+            "Erro ao gerar a lista."
+        );
+
     }
 
-    listaFormatada += `\n*Goleiros (${goleiros.length}/${info.max_goleiros})*\n`;
-    for (let i = 0; i < info.max_goleiros; i++) {
-      if (i < goleiros.length) {
-        const goleiro = goleiros[i];
-        const pago = goleiro.status_pagamento === 1 ? '✅' : '...';
-        const nomeExibido = goleiro.nome_jogador.length > 10
-          ? goleiro.nome_jogador.slice(0, 10) + '…'
-          : goleiro.nome_jogador;
-        listaFormatada += `${i + 1}. ${nomeExibido} - Pgto: ${pago}\n`;
-      } else {
-        listaFormatada += `${i + 1}. ...\n`;
-      }
-    }
-
-    if (reservas.length > 0) {
-      listaFormatada += `\n*Lista de Reserva (${reservas.length})*\n`;
-      reservas.forEach(reserva => {
-        const pago = reserva.status_pagamento === 1 ? '✅' : '...';
-        const nomeExibido = reserva.nome_jogador.length > 10
-          ? reserva.nome_jogador.slice(0, 10) + '…'
-          : reserva.nome_jogador;
-        listaFormatada += `- ${nomeExibido} - Pgto: ${pago}\n`;
-      });
-    }
-
-    await chat.sendMessage(listaFormatada);
-  } catch (err) {
-    logger.error(`Erro ao gerar a lista: ${err.stack || err.message}`);
-    chat.sendMessage("Ocorreu um erro ao tentar gerar a lista.");
-  }
 }
-
 /* =========================================================================
    ------------------------ FUNÇÕES PÚBLICAS (API) -------------------------
    ========================================================================= */
