@@ -287,20 +287,16 @@ function adicionarJogadorPrivado(nome, telefone, tipo, pago = 0) {
 
 
 
-module.exports = {
+// ============================
+// Funções auxiliares
+// ============================
 
-    db,
+db.getInscricao = getInscricao;
+db.criarInscricao = criarInscricao;
+db.atualizarEstado = atualizarEstado;
+db.atualizarNome = atualizarNome;
+db.atualizarPosicao = atualizarPosicao;
+db.adicionarJogadorPrivado = adicionarJogadorPrivado;
 
-    getInscricao,
-
-    criarInscricao,
-
-    atualizarEstado,
-
-    atualizarNome,
-
-    atualizarPosicao,
-    
-        adicionarJogadorPrivado
-
-};
+// Exporta o próprio objeto SQLite
+module.exports = db;
