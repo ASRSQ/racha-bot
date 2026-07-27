@@ -41,14 +41,25 @@ const db = new sqlite3.Database(
             // ============================
 
             db.run(`
-                CREATE TABLE IF NOT EXISTS partida_info (
-                    id INTEGER PRIMARY KEY CHECK (id = 1),
-                    titulo TEXT DEFAULT 'Racha dos Crias',
-                    data_hora TEXT DEFAULT 'A definir',
-                    valor TEXT DEFAULT '${config.DEFAULT_RACHA_VALUE}',
-                    max_linha INTEGER DEFAULT ${config.DEFAULT_MAX_LINHA},
-                    max_goleiros INTEGER DEFAULT ${config.DEFAULT_MAX_GOLEIROS}
-                )
+            CREATE TABLE IF NOT EXISTS partida_info (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+
+    titulo TEXT DEFAULT 'Racha dos Crias',
+
+    data_hora TEXT DEFAULT 'A definir',
+
+    valor TEXT DEFAULT '${config.DEFAULT_RACHA_VALUE}',
+
+    max_linha INTEGER DEFAULT ${config.DEFAULT_MAX_LINHA},
+
+    max_goleiros INTEGER DEFAULT ${config.DEFAULT_MAX_GOLEIROS},
+
+    permite_inscricao_grupo INTEGER DEFAULT 1,
+
+    permite_inscricao_privado INTEGER DEFAULT 1,
+
+    pagamento_obrigatorio INTEGER DEFAULT 1
+)
             `, (err) => {
 
                 if (err) {
@@ -69,6 +80,47 @@ const db = new sqlite3.Database(
                     }
 
                 });
+                db.run(`
+    ALTER TABLE partida_info
+    ADD COLUMN permite_inscricao_grupo INTEGER DEFAULT 1
+`, err => {
+
+    if (
+        err &&
+        !err.message.includes("duplicate column")
+    ) {
+        logger.error(err.message);
+    }
+
+});
+
+db.run(`
+    ALTER TABLE partida_info
+    ADD COLUMN permite_inscricao_privado INTEGER DEFAULT 1
+`, err => {
+
+    if (
+        err &&
+        !err.message.includes("duplicate column")
+    ) {
+        logger.error(err.message);
+    }
+
+});
+
+db.run(`
+    ALTER TABLE partida_info
+    ADD COLUMN pagamento_obrigatorio INTEGER DEFAULT 1
+`, err => {
+
+    if (
+        err &&
+        !err.message.includes("duplicate column")
+    ) {
+        logger.error(err.message);
+    }
+
+});
 
                 db.run(`
                     INSERT OR IGNORE INTO partida_info(id)
@@ -284,6 +336,74 @@ function adicionarJogadorPrivado(nome, telefone, tipo, pago = 0) {
     });
 
 }
+function getPartida() {
+
+    return new Promise((resolve, reject) => {
+
+        db.get(
+
+            "SELECT * FROM partida_info WHERE id = 1",
+
+            (err, row) => {
+
+                if (err) return reject(err);
+
+                resolve(row);
+
+            }
+
+        );
+
+    });
+
+}
+function atualizarConfiguracao(campo, valor) {
+
+    const camposPermitidos = [
+
+        "titulo",
+        "data_hora",
+        "valor",
+        "max_linha",
+        "max_goleiros",
+
+        "permite_inscricao_grupo",
+        "permite_inscricao_privado",
+        "pagamento_obrigatorio"
+
+    ];
+
+    if (!camposPermitidos.includes(campo)) {
+
+        return Promise.reject(
+            new Error("Campo inválido.")
+        );
+
+    }
+
+    return new Promise((resolve, reject) => {
+
+        db.run(
+
+            `UPDATE partida_info
+             SET ${campo} = ?
+             WHERE id = 1`,
+
+            [valor],
+
+            err => {
+
+                if (err) return reject(err);
+
+                resolve();
+
+            }
+
+        );
+
+    });
+
+}
 
 
 
@@ -298,5 +418,7 @@ db.atualizarNome = atualizarNome;
 db.atualizarPosicao = atualizarPosicao;
 db.adicionarJogadorPrivado = adicionarJogadorPrivado;
 
-// Exporta o próprio objeto SQLite
+db.getPartida = getPartida;
+db.atualizarConfiguracao = atualizarConfiguracao;
+
 module.exports = db;

@@ -11,6 +11,7 @@ async function handleCommand(client, message) {
 
     const body = message.body.trim();
     const command = body.toLowerCase();
+    const partida = await db.getPartida();
 
     // ==============================
     // CORREÇÃO DO ERRO DO WHATSAPP
@@ -37,6 +38,21 @@ console.log("DEBUG isSenderAdmin:", isSenderAdmin);
 
 logger.info("DEBUG SENDER ID: " + senderId);
     try {
+        if (
+    !partida.permite_inscricao_grupo &&
+    (
+        command.startsWith('!entrar') ||
+        command.startsWith('!add')
+    )
+) {
+
+    return message.reply(
+`⚽ As inscrições pelo grupo estão desativadas.
+
+📲 Envie qualquer mensagem no privado do bot para iniciar sua inscrição.`
+    );
+
+}
         if (command.startsWith('!entrar')) {
             const tipoDesejado = command.includes('goleiro') ? 'goleiro' : 'linha';
 
@@ -219,12 +235,56 @@ logger.info("DEBUG SENDER ID: " + senderId);
             await message.reply(helpMessage);
         }
 
-        else if (['!pagou', '!settitulo', '!setdata', '!limpar', '!setvagas', '!setvalor']
-            .some(adminCmd => command.startsWith(adminCmd))) {
+       else if (
+    [
+        '!pagou',
+        '!settitulo',
+        '!setdata',
+        '!limpar',
+        '!setvagas',
+        '!setvalor',
+        '!inscricao'
+    ].some(adminCmd => command.startsWith(adminCmd))
+) {
 
             if (!isSenderAdmin)
                 return message.reply('❌ Apenas administradores podem usar este comando.');
+// ===============================
+// !inscricao grupo
+// !inscricao privado
+// ===============================
 
+if (command.startsWith('!inscricao')) {
+
+    const modo = body.substring(11).trim().toLowerCase();
+
+    if (!['grupo', 'privado'].includes(modo)) {
+
+        return message.reply(
+`Uso:
+
+!inscricao grupo
+!inscricao privado`
+        );
+
+    }
+
+    await db.atualizarConfiguracao(
+        "permite_inscricao_grupo",
+        modo === "grupo" ? 1 : 0
+    );
+
+    return message.reply(
+
+        modo === "grupo"
+
+            ? "✅ Inscrições pelo grupo ativadas."
+
+            : "✅ Inscrições agora serão realizadas apenas no privado."
+
+    );
+
+}
             if (command.startsWith('!setvalor')) {
                 const novoValor = body.substring(10).trim();
                 if (!novoValor) return message.reply('Uso: !setvalor <novo valor>');
