@@ -5,60 +5,109 @@ async function handlePrivateMessage(sock, message) {
     const telefone = message.from;
     const texto = message.body.trim();
 
+    // ==========================
+    // CONFIGURAÇÃO DA PARTIDA
+    // ==========================
+
+    const partida = await db.getPartida();
+
+    if (!partida.permite_inscricao_privado) {
+
+        return message.reply(`⚽ As inscrições estão fechadas no momento.
+
+Aguarde a abertura da próxima partida.`);
+
+    }
+
+    // ==========================
+    // BUSCA INSCRIÇÃO
+    // ==========================
+
     let inscricao = await db.getInscricao(telefone);
 
+    // Primeira conversa
     if (!inscricao) {
+
         await db.criarInscricao(telefone);
-        inscricao = await db.getInscricao(telefone);
+
+        await db.atualizarEstado(
+            telefone,
+            "AGUARDANDO_NOME"
+        );
+
+        return message.reply(`👋 Bem-vindo ao Bot do Racha!
+
+Vamos fazer sua inscrição.
+
+Qual é o seu nome?`);
+
     }
 
     switch (inscricao.estado) {
 
-        case "MENU":
-
-            if (texto.toLowerCase() !== "menu") {
-                return message.reply("Digite *menu* para iniciar.");
-            }
-
-            await message.reply(`👋 Bem-vindo ao Racha!
-
-Digite *1* para iniciar sua inscrição.`);
-
-            await db.atualizarEstado(telefone, "AGUARDANDO_OPCAO");
-            break;
-
-        case "AGUARDANDO_OPCAO":
-
-            if (texto !== "1") {
-                return message.reply("Digite apenas *1*.");
-            }
-
-            await message.reply("Informe seu nome:");
-
-            await db.atualizarEstado(telefone, "AGUARDANDO_NOME");
-            break;
+        // ==========================
+        // NOME
+        // ==========================
 
         case "AGUARDANDO_NOME":
 
-            await db.atualizarNome(telefone, texto);
+            if (texto.length < 3) {
 
-            await message.reply(`Escolha uma opção:
+                return message.reply(
+                    "Informe um nome válido."
+                );
+
+            }
+
+            await db.atualizarNome(
+                telefone,
+                texto
+            );
+
+            await db.atualizarEstado(
+                telefone,
+                "AGUARDANDO_TIPO"
+            );
+
+            return message.reply(`Perfeito, *${texto}*!
+
+Agora escolha sua posição:
 
 1️⃣ Jogador de Linha
 
-2️⃣ Goleiro`);
+2️⃣ Goleiro
 
-            await db.atualizarEstado(telefone, "AGUARDANDO_TIPO");
-            break;
+Você também pode responder:
 
-        case "AGUARDANDO_TIPO":
+• linha
+• goleiro`);
 
-            // ==========================
+        // ==========================
+        // POSIÇÃO
+        // ==========================
+
+        case "AGUARDANDO_TIPO": {
+
+            const resposta = texto.toLowerCase();
+
+            const linha =
+                resposta === "1" ||
+                resposta.includes("linha");
+
+            const goleiro =
+                resposta === "2" ||
+                resposta.includes("goleiro") ||
+                resposta.includes("gol");
+
+            // ======================
             // GOLEIRO
-            // ==========================
-            if (texto === "2") {
+            // ======================
 
-                inscricao = await db.getInscricao(telefone);
+            if (goleiro) {
+
+                inscricao = await db.getInscricao(
+                    telefone
+                );
 
                 try {
 
@@ -74,69 +123,130 @@ Digite *1* para iniciar sua inscrição.`);
                         "FINALIZADO"
                     );
 
-                    await message.reply(`✅ Inscrição concluída!
+                    return message.reply(`✅ Inscrição concluída!
 
 🥅 Você foi cadastrado como GOLEIRO.
-
-Não é necessário realizar pagamento.
 
 Boa partida!`);
 
                 } catch (err) {
 
-                    return message.reply("Esse nome já está na lista.");
+                    return message.reply(
+                        "Esse nome já está na lista."
+                    );
 
                 }
 
-                return;
             }
 
-            // ==========================
-            // JOGADOR DE LINHA
-            // ==========================
-            if (texto === "1") {
+            // ======================
+            // LINHA
+            // ======================
+
+            if (linha) {
 
                 await db.atualizarPosicao(
                     telefone,
                     "linha"
                 );
 
-                await db.atualizarEstado(
-                    telefone,
-                    "AGUARDANDO_PAGAMENTO"
-                );
+                if (partida.pagamento_obrigatorio) {
 
-                await message.reply(`💰 Você foi cadastrado como jogador de linha.
+                    await db.atualizarEstado(
+                        telefone,
+                        "AGUARDANDO_PAGAMENTO"
+                    );
+
+                    return message.reply(`💰 Perfeito!
 
 Agora vou gerar seu PIX.
 
-Aguarde...`);
+Aguarde alguns segundos...`);
 
-                return;
+                }
+
+                // ======================
+                // SEM PAGAMENTO
+                // ======================
+
+                inscricao = await db.getInscricao(
+                    telefone
+                );
+
+                try {
+
+                    await db.adicionarJogadorPrivado(
+                        inscricao.nome,
+                        telefone,
+                        "linha",
+                        0
+                    );
+
+                    await db.atualizarEstado(
+                        telefone,
+                        "FINALIZADO"
+                    );
+
+                    return message.reply(`✅ Inscrição concluída!
+
+Você já está na lista.
+
+Boa partida! ⚽`);
+
+                } catch (err) {
+
+                    return message.reply(
+                        "Esse nome já está na lista."
+                    );
+
+                }
+
             }
 
-            await message.reply("Digite apenas 1 ou 2.");
-            break;
+            return message.reply(`Resposta inválida.
+
+Digite:
+
+1️⃣ Linha
+
+2️⃣ Goleiro`);
+
+        }
+
+        // ==========================
+        // PAGAMENTO
+        // ==========================
 
         case "AGUARDANDO_PAGAMENTO":
 
-            await message.reply(`Seu PIX ainda não foi pago.
+            return message.reply(`💰 Seu PIX ainda está aguardando pagamento.
 
-Assim que o pagamento for aprovado você entrará automaticamente na lista.`);
+Assim que o pagamento for aprovado você será colocado automaticamente na lista.`);
 
-            break;
+        // ==========================
+        // FINALIZADO
+        // ==========================
 
         case "FINALIZADO":
 
-            await message.reply("Sua inscrição já foi concluída.");
+            return message.reply(`✅ Sua inscrição já foi concluída.
 
-            break;
+Nos vemos no racha! ⚽`);
+
+        // ==========================
+        // ESTADO DESCONHECIDO
+        // ==========================
 
         default:
 
-            await db.atualizarEstado(telefone, "MENU");
+            await db.atualizarEstado(
+                telefone,
+                "AGUARDANDO_NOME"
+            );
 
-            await message.reply("Digite *menu*.");
+            return message.reply(`Vamos começar novamente.
+
+Qual é o seu nome?`);
 
     }
 
