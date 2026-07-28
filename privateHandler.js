@@ -376,7 +376,7 @@ Digite:
     return;
 }
 
-Assim que o pagamento for aprovado você será colocado automaticamente na lista.`);
+
 
         // ==========================
         // FINALIZADO
