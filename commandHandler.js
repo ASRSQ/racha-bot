@@ -42,7 +42,7 @@ logger.info("DEBUG SENDER ID: " + senderId);
     !partida.permite_inscricao_grupo &&
     (
         command.startsWith('!entrar') ||
-        command.startsWith('!add')
+        command.startsWith('!add')||  command.startsWith('!pix')
     )
 ) {
 
