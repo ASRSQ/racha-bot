@@ -191,74 +191,75 @@ Boa partida!`);
 
     inscricao = await db.getInscricao(telefone);
 
-    try {
+  try {
 
-     console.log("\n==============================");
-console.log("DADOS DA PARTIDA");
-console.log("==============================");
+    console.log("\n==============================");
+    console.log("DADOS DA PARTIDA");
+    console.log("==============================");
 
-console.dir(partida, { depth: null });
+    console.dir(partida, { depth: null });
 
-console.log("Valor original:", partida.valor);
-console.log("Tipo:", typeof partida.valor);
+    const valor = parseFloat(
+        String(partida.valor)
+            .replace("R$", "")
+            .replace(",", ".")
+            .trim()
+    );
 
-const valor = parseFloat(
-    String(partida.valor)
-        .replace("R$", "")
-        .replace(",", ".")
-        .trim()
-);
+    console.log("Valor convertido:", valor);
 
-console.log("Valor convertido:", valor);
+    const pix = await gerarPix(
+        inscricao.nome,
+        telefone.replace(/\D/g, ""),
+        valor
+    );
 
-console.log("==============================\n");
+    console.log("\n==============================");
+    console.log("PIX GERADO");
+    console.log("==============================");
+    console.dir(pix, { depth: null });
 
-const pix = await gerarPix(
-    inscricao.nome,
-    telefone.replace(/\D/g, ""),
-    valor
-);
+    await db.salvarPagamento({
 
-        const pagamento = pix.transactions.payments[0];
+        telefone,
 
-        await db.salvarPagamento({
+        orderId: null, // API Payment não possui Order
 
-            telefone,
+        paymentId: pix.payment_id,
 
-            orderId: pix.id,
+        status: pix.status,
 
-            paymentId: pagamento.id,
+        qrCode: pix.qr_code,
 
-            status: pagamento.status,
+        qrCodeBase64: pix.qr_code_base64,
 
-            qrCode: pagamento.payment_method.qr_code,
+        expiracao: pix.expiracao
 
-            qrCodeBase64: pagamento.payment_method.qr_code_base64,
+    });
 
-            expiracao: pagamento.date_of_expiration
+    return message.reply(`💰 *PIX gerado com sucesso!*
 
-        });
+Valor: *R$ ${valor.toFixed(2)}*
 
-        return message.reply(`💰 *PIX gerado com sucesso!*
+📋 *Código PIX (Copia e Cola):*
 
-Valor: *R$ ${Number(partida.valor).toFixed(2)}*
-
-Copie e cole o código abaixo no aplicativo do seu banco:
-
-${pagamento.payment_method.qr_code}
+${pix.qr_code}
 
 ⏳ Assim que o pagamento for confirmado sua inscrição será concluída automaticamente.`);
 
-    } catch (erro) {
+} catch (erro) {
 
-        console.error(erro);
+    console.log("\n==============================");
+    console.log("ERRO AO GERAR PIX");
+    console.log("==============================");
 
-        return message.reply(`❌ Não foi possível gerar o PIX.
+    console.dir(erro, { depth: null });
+
+    return message.reply(`❌ Não foi possível gerar o PIX.
 
 Tente novamente em alguns instantes.`);
 
-    }
-
+}
 }
 
                 // ======================
