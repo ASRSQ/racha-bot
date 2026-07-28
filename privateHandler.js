@@ -193,11 +193,31 @@ Boa partida!`);
 
     try {
 
-        const pix = await gerarPix(
-            inscricao.nome,
-            telefone,
-            Number(partida.valor)
-        );
+     console.log("\n==============================");
+console.log("DADOS DA PARTIDA");
+console.log("==============================");
+
+console.dir(partida, { depth: null });
+
+console.log("Valor original:", partida.valor);
+console.log("Tipo:", typeof partida.valor);
+
+const valor = parseFloat(
+    String(partida.valor)
+        .replace("R$", "")
+        .replace(",", ".")
+        .trim()
+);
+
+console.log("Valor convertido:", valor);
+
+console.log("==============================\n");
+
+const pix = await gerarPix(
+    inscricao.nome,
+    telefone.replace(/\D/g, ""),
+    valor
+);
 
         const pagamento = pix.transactions.payments[0];
 
