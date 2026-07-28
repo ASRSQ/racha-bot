@@ -155,10 +155,19 @@ Depois envie o novo nome.`);
                 texto
             );
 
-            await db.atualizarEstado(
+           await db.atualizarEstado(
                 telefone,
-                "AGUARDANDO_TIPO"
+                "AGUARDANDO_CONFIRMACAO_NOME"
             );
+
+            return message.reply(`Você informou o nome:
+
+            *${texto}*
+
+            Está correto?
+
+            1️⃣ Sim
+            2️⃣ Não`);
 
             return message.reply(`Perfeito, *${texto}*!
 
@@ -176,7 +185,60 @@ Você também pode responder:
         });
 
     return;
+case "AGUARDANDO_CONFIRMACAO_NOME": {
 
+    const resposta = texto.toLowerCase();
+
+    const sim =
+        resposta === "1" ||
+        resposta === "sim" ||
+        resposta === "s";
+
+    const nao =
+        resposta === "2" ||
+        resposta === "não" ||
+        resposta === "nao" ||
+        resposta === "n";
+
+    if (sim) {
+
+        await db.atualizarEstado(
+            telefone,
+            "AGUARDANDO_TIPO"
+        );
+
+        inscricao = await db.getInscricao(telefone);
+
+        return message.reply(`Perfeito, *${inscricao.nome}!*
+
+Agora escolha sua posição:
+
+1️⃣ Jogador de Linha
+
+2️⃣ Goleiro`);
+    }
+
+    if (nao) {
+
+        await db.atualizarEstado(
+            telefone,
+            "AGUARDANDO_NOME"
+        );
+
+        return message.reply(`Sem problemas.
+
+Digite novamente o seu nome.`);
+    }
+
+    return message.reply(`Responda apenas:
+
+1️⃣ Sim
+
+ou
+
+2️⃣ Não`);
+
+}
 
         // ==========================
         // POSIÇÃO
