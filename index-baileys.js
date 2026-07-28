@@ -9,7 +9,9 @@ const P = require('pino');
 const qrcode = require('qrcode-terminal');
 const { handleCommand } = require('./commandHandler');
 const { handlePrivateMessage } = require('./privateHandler');
+const { verificarPagamentos } = require('./pagamentos');
 const whatsappService = require('./whatsappService');
+
 require('./database');
 
 console.log("🚀 Iniciando Baileys...");
@@ -52,10 +54,23 @@ async function startBot() {
             console.log("🔄 Conectando...");
         }
 
-        if (connection === 'open') {
-            console.log("✅ BOT CONECTADO COM SUCESSO!");
-        }
+      if (connection === 'open') {
 
+    console.log("✅ BOT CONECTADO COM SUCESSO!");
+
+    if (!global.verificadorPix) {
+
+        global.verificadorPix = setInterval(async () => {
+
+            await verificarPagamentos(sock);
+
+        }, 30000);
+
+        console.log("🔍 Verificador de PIX iniciado.");
+
+    }
+
+}
         if (connection === 'close') {
             console.log("❌ Conexão fechada!");
 

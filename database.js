@@ -453,8 +453,49 @@ function salvarPagamento(dados) {
 
 }
 
+function getPagamentosPendentes() {
 
+    return new Promise((resolve, reject) => {
 
+        db.all(
+            `SELECT *
+             FROM inscricoes
+             WHERE estado='AGUARDANDO_PAGAMENTO'
+             AND mercadopago_payment_id IS NOT NULL`,
+            [],
+            (err, rows) => {
+
+                if (err) return reject(err);
+
+                resolve(rows);
+
+            }
+        );
+
+    });
+
+}
+function atualizarStatusPagamento(paymentId, status) {
+
+    return new Promise((resolve, reject) => {
+
+        db.run(
+            `UPDATE inscricoes
+             SET mercadopago_status=?
+             WHERE mercadopago_payment_id=?`,
+            [status, paymentId],
+            function(err){
+
+                if(err) return reject(err);
+
+                resolve();
+
+            }
+        );
+
+    });
+
+}
 // ============================
 // Funções auxiliares
 // ============================
@@ -469,5 +510,6 @@ db.adicionarJogadorPrivado = adicionarJogadorPrivado;
 db.getPartida = getPartida;
 db.atualizarConfiguracao = atualizarConfiguracao;
 db.salvarPagamento = salvarPagamento;
-
+db.getPagamentosPendentes = getPagamentosPendentes;
+db.atualizarStatusPagamento = atualizarStatusPagamento;
 module.exports = db;
