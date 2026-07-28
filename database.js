@@ -413,6 +413,45 @@ function atualizarConfiguracao(campo, valor) {
     });
 
 }
+function salvarPagamento(dados) {
+
+    return new Promise((resolve, reject) => {
+
+        db.run(
+
+            `UPDATE inscricoes
+             SET mercadopago_order_id = ?,
+                 mercadopago_payment_id = ?,
+                 mercadopago_status = ?,
+                 mercadopago_qr = ?,
+                 mercadopago_qr_base64 = ?,
+                 mercadopago_expiracao = ?,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE telefone = ?`,
+
+            [
+                dados.orderId,
+                dados.paymentId,
+                dados.status,
+                dados.qrCode,
+                dados.qrCodeBase64,
+                dados.expiracao,
+                dados.telefone
+            ],
+
+            err => {
+
+                if (err) return reject(err);
+
+                resolve();
+
+            }
+
+        );
+
+    });
+
+}
 
 
 
@@ -429,5 +468,6 @@ db.adicionarJogadorPrivado = adicionarJogadorPrivado;
 
 db.getPartida = getPartida;
 db.atualizarConfiguracao = atualizarConfiguracao;
+db.salvarPagamento = salvarPagamento;
 
 module.exports = db;

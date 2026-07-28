@@ -1,4 +1,5 @@
 const db = require('./database');
+const { gerarPix } = require('./pix');
 
 async function handlePrivateMessage(sock, message) {
 
@@ -112,36 +113,6 @@ Você também pode responder:
 
     return;
 
-            if (texto.length < 3) {
-
-                return message.reply(
-                    "Informe um nome válido."
-                );
-
-            }
-
-            await db.atualizarNome(
-                telefone,
-                texto
-            );
-
-            await db.atualizarEstado(
-                telefone,
-                "AGUARDANDO_TIPO"
-            );
-
-            return message.reply(`Perfeito, *${texto}*!
-
-Agora escolha sua posição:
-
-1️⃣ Jogador de Linha
-
-2️⃣ Goleiro
-
-Você também pode responder:
-
-• linha
-• goleiro`);
 
         // ==========================
         // POSIÇÃO
@@ -211,20 +182,64 @@ Boa partida!`);
                     "linha"
                 );
 
-                if (partida.pagamento_obrigatorio) {
+              if (partida.pagamento_obrigatorio) {
 
-                    await db.atualizarEstado(
-                        telefone,
-                        "AGUARDANDO_PAGAMENTO"
-                    );
+    await db.atualizarEstado(
+        telefone,
+        "AGUARDANDO_PAGAMENTO"
+    );
 
-                    return message.reply(`💰 Perfeito!
+    inscricao = await db.getInscricao(telefone);
 
-Agora vou gerar seu PIX.
+    try {
 
-Aguarde alguns segundos...`);
+        const pix = await gerarPix(
+            inscricao.nome,
+            telefone,
+            Number(partida.valor)
+        );
 
-                }
+        const pagamento = pix.transactions.payments[0];
+
+        await db.salvarPagamento({
+
+            telefone,
+
+            orderId: pix.id,
+
+            paymentId: pagamento.id,
+
+            status: pagamento.status,
+
+            qrCode: pagamento.payment_method.qr_code,
+
+            qrCodeBase64: pagamento.payment_method.qr_code_base64,
+
+            expiracao: pagamento.date_of_expiration
+
+        });
+
+        return message.reply(`💰 *PIX gerado com sucesso!*
+
+Valor: *R$ ${Number(partida.valor).toFixed(2)}*
+
+Copie e cole o código abaixo no aplicativo do seu banco:
+
+${pagamento.payment_method.qr_code}
+
+⏳ Assim que o pagamento for confirmado sua inscrição será concluída automaticamente.`);
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        return message.reply(`❌ Não foi possível gerar o PIX.
+
+Tente novamente em alguns instantes.`);
+
+    }
+
+}
 
                 // ======================
                 // SEM PAGAMENTO
