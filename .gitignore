@@ -1,18 +1,41 @@
-# Arquivo .gitignore
-
 # Dependências
 node_modules/
 
-# Arquivos de Sessão e Autenticação
-wwebjs_auth/
-.wwebjs_auth/
+# Variáveis de ambiente
+.env
+.env.*
 
-# Logs e Banco de Dados
+# Banco SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
 logs/
-data/
 *.log
-racha.db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Arquivos do sistema
+# Arquivos temporários
+tmp/
+temp/
+
+# Sistema Operacional
 .DS_Store
-npm-debug.log
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# Coverage
+coverage/
+
+# Cache
+.cache/
+
+# Arquivos de teste
+teste-*.js

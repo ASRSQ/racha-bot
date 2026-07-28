@@ -10,6 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "dotenv": "^17.4.2",
+    "mercadopago": "^3.2.1",
     "p-queue": "^8.1.0",
     "pixbrasil": "^1.0.5",
     "qrcode-terminal": "^0.12.0",

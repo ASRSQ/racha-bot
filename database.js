@@ -138,23 +138,32 @@ db.run(`
             db.run(`
                 CREATE TABLE IF NOT EXISTS inscricoes (
 
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-                    telefone TEXT NOT NULL UNIQUE,
+    telefone TEXT NOT NULL UNIQUE,
 
-                    nome TEXT,
+    nome TEXT,
 
-                    posicao TEXT,
+    posicao TEXT,
 
-                    estado TEXT DEFAULT 'MENU',
+    estado TEXT DEFAULT 'MENU',
 
-                    mercadopago_payment_id TEXT,
+    mercadopago_order_id TEXT,
 
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    mercadopago_payment_id TEXT,
 
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    mercadopago_status TEXT,
 
-                )
+    mercadopago_qr TEXT,
+
+    mercadopago_qr_base64 TEXT,
+
+    mercadopago_expiracao TEXT,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
             `, (err) => {
 
                 if (err)

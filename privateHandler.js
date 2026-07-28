@@ -51,6 +51,67 @@ Qual é o seu nome?`);
 
         case "AGUARDANDO_NOME":
 
+    if (texto.length < 3) {
+
+        return message.reply(
+            "Informe um nome válido."
+        );
+
+    }
+
+    // Verifica se já existe um jogador com esse nome
+    db.get(
+        'SELECT 1 FROM jogadores WHERE nome_jogador = ?',
+        [texto],
+        async (err, row) => {
+
+            if (err) {
+                return message.reply("Erro ao consultar o banco de dados.");
+            }
+
+            if (row) {
+
+                return message.reply(`⚠️ Já existe um jogador inscrito com esse nome.
+
+Se essa inscrição for sua, não é necessário realizar um novo cadastro.
+
+Caso seja outra pessoa com o mesmo nome, tente se inscrever utilizando um nome diferente, como:
+
+• João Silva
+• João S.
+• João (Centro)
+
+Depois envie o novo nome.`);
+
+            }
+
+            await db.atualizarNome(
+                telefone,
+                texto
+            );
+
+            await db.atualizarEstado(
+                telefone,
+                "AGUARDANDO_TIPO"
+            );
+
+            return message.reply(`Perfeito, *${texto}*!
+
+Agora escolha sua posição:
+
+1️⃣ Jogador de Linha
+
+2️⃣ Goleiro
+
+Você também pode responder:
+
+• linha
+• goleiro`);
+
+        });
+
+    return;
+
             if (texto.length < 3) {
 
                 return message.reply(
