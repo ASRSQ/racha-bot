@@ -39,3 +39,7 @@ coverage/
 
 # Arquivos de teste
 teste-*.js
+# WhatsApp Web JS
+.wwebjs_auth/
+.wwebjs_cache/
+auth_info/
