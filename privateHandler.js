@@ -190,8 +190,7 @@ Boa partida!`);
     );
 
     inscricao = await db.getInscricao(telefone);
-
-  try {
+try {
 
     console.log("\n==============================");
     console.log("DADOS DA PARTIDA");
@@ -223,7 +222,7 @@ Boa partida!`);
 
         telefone,
 
-        orderId: null, // API Payment não possui Order
+        orderId: null,
 
         paymentId: pix.payment_id,
 
@@ -237,15 +236,36 @@ Boa partida!`);
 
     });
 
-    return message.reply(`💰 *PIX gerado com sucesso!*
+    // Converte o Base64 em imagem
+    const qrBase64 = pix.qr_code_base64.replace(
+        /^data:image\/\w+;base64,/,
+        ""
+    );
 
-Valor: *R$ ${valor.toFixed(2)}*
+    const qrBuffer = Buffer.from(qrBase64, "base64");
 
-📋 *Código PIX (Copia e Cola):*
+    // Envia o QR Code
+    await sock.sendMessage(telefone, {
+        image: qrBuffer,
+        caption: `💰 *PIX gerado com sucesso!*
 
+💵 Valor: *R$ ${valor.toFixed(2)}*
+
+📷 Escaneie o QR Code abaixo ou utilize o código PIX Copia e Cola que será enviado na próxima mensagem.`
+    });
+
+    // Envia o código Copia e Cola
+    await sock.sendMessage(telefone, {
+        text: `📋 *PIX Copia e Cola*
+
+\`\`\`
 ${pix.qr_code}
+\`\`\`
 
-⏳ Assim que o pagamento for confirmado sua inscrição será concluída automaticamente.`);
+⏳ Assim que o pagamento for confirmado sua inscrição será concluída automaticamente.`
+    });
+
+    return;
 
 } catch (erro) {
 
