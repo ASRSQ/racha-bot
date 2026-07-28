@@ -255,15 +255,21 @@ try {
     });
 
     // Envia o código Copia e Cola
-    await sock.sendMessage(telefone, {
-        text: `📋 *PIX Copia e Cola*
+// Explica ao usuário
+await sock.sendMessage(telefone, {
+    text: `📋 *PIX Copia e Cola*
 
-\`\`\`
-${pix.qr_code}
-\`\`\`
+Na próxima mensagem será enviado apenas o código PIX.
+
+👉 Basta tocar e segurar a mensagem para copiá-lo.
 
 ⏳ Assim que o pagamento for confirmado sua inscrição será concluída automaticamente.`
-    });
+});
+
+// Envia somente o código PIX
+await sock.sendMessage(telefone, {
+    text: pix.qr_code
+});
 
     return;
 
