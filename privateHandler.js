@@ -1,5 +1,69 @@
 const db = require('./database');
 const { gerarPix } = require('./pix');
+async function gerarEEnviarPix(sock, telefone, inscricao, partida) {
+
+    const valor = parseFloat(
+        String(partida.valor)
+            .replace("R$", "")
+            .replace(",", ".")
+            .trim()
+    );
+
+    console.log("Gerando PIX de R$", valor);
+
+    const pix = await gerarPix(
+        inscricao.nome,
+        telefone.replace(/\D/g, ""),
+        valor
+    );
+
+    await db.salvarPagamento({
+
+        telefone,
+
+        orderId: null,
+
+        paymentId: pix.payment_id,
+
+        status: pix.status,
+
+        qrCode: pix.qr_code,
+
+        qrCodeBase64: pix.qr_code_base64,
+
+        expiracao: pix.expiracao
+
+    });
+
+    const qrBase64 = pix.qr_code_base64.replace(
+        /^data:image\/\w+;base64,/,
+        ""
+    );
+
+    const qrBuffer = Buffer.from(qrBase64, "base64");
+
+    await sock.sendMessage(telefone, {
+        image: qrBuffer,
+        caption: `💰 *PIX gerado com sucesso!*
+
+💵 Valor: *R$ ${valor.toFixed(2)}*
+
+📷 Escaneie o QR Code abaixo ou utilize o código PIX Copia e Cola que será enviado na próxima mensagem.`
+    });
+
+    await sock.sendMessage(telefone, {
+        text: `📋 *PIX Copia e Cola*
+
+Na próxima mensagem será enviado apenas o código PIX.
+
+👉 Basta tocar e segurar a mensagem para copiá-lo.`
+    });
+
+    await sock.sendMessage(telefone, {
+        text: pix.qr_code
+    });
+
+}
 
 async function handlePrivateMessage(sock, message) {
 
@@ -191,87 +255,15 @@ Boa partida!`);
 
     inscricao = await db.getInscricao(telefone);
 try {
+await gerarEEnviarPix(
+    sock,
+    telefone,
+    inscricao,
+    partida
+);
 
-    console.log("\n==============================");
-    console.log("DADOS DA PARTIDA");
-    console.log("==============================");
+return;
 
-    console.dir(partida, { depth: null });
-
-    const valor = parseFloat(
-        String(partida.valor)
-            .replace("R$", "")
-            .replace(",", ".")
-            .trim()
-    );
-
-    console.log("Valor convertido:", valor);
-
-    const pix = await gerarPix(
-        inscricao.nome,
-        telefone.replace(/\D/g, ""),
-        valor
-    );
-
-    console.log("\n==============================");
-    console.log("PIX GERADO");
-    console.log("==============================");
-    console.dir(pix, { depth: null });
-
-    await db.salvarPagamento({
-
-        telefone,
-
-        orderId: null,
-
-        paymentId: pix.payment_id,
-
-        status: pix.status,
-
-        qrCode: pix.qr_code,
-
-        qrCodeBase64: pix.qr_code_base64,
-
-        expiracao: pix.expiracao
-
-    });
-
-    // Converte o Base64 em imagem
-    const qrBase64 = pix.qr_code_base64.replace(
-        /^data:image\/\w+;base64,/,
-        ""
-    );
-
-    const qrBuffer = Buffer.from(qrBase64, "base64");
-
-    // Envia o QR Code
-    await sock.sendMessage(telefone, {
-        image: qrBuffer,
-        caption: `💰 *PIX gerado com sucesso!*
-
-💵 Valor: *R$ ${valor.toFixed(2)}*
-
-📷 Escaneie o QR Code abaixo ou utilize o código PIX Copia e Cola que será enviado na próxima mensagem.`
-    });
-
-    // Envia o código Copia e Cola
-// Explica ao usuário
-await sock.sendMessage(telefone, {
-    text: `📋 *PIX Copia e Cola*
-
-Na próxima mensagem será enviado apenas o código PIX.
-
-👉 Basta tocar e segurar a mensagem para copiá-lo.
-
-⏳ Assim que o pagamento for confirmado sua inscrição será concluída automaticamente.`
-});
-
-// Envia somente o código PIX
-await sock.sendMessage(telefone, {
-    text: pix.qr_code
-});
-
-    return;
 
 } catch (erro) {
 
@@ -340,9 +332,49 @@ Digite:
         // PAGAMENTO
         // ==========================
 
-        case "AGUARDANDO_PAGAMENTO":
+       case "AGUARDANDO_PAGAMENTO": {
 
-            return message.reply(`💰 Seu PIX ainda está aguardando pagamento.
+    inscricao = await db.getInscricao(telefone);
+
+    if (
+        inscricao.mercadopago_expiracao &&
+        new Date() < new Date(inscricao.mercadopago_expiracao)
+    ) {
+
+        // Reenvia o PIX existente
+        const qrBase64 = inscricao.mercadopago_qr_base64.replace(
+            /^data:image\/\w+;base64,/,
+            ""
+        );
+
+        const qrBuffer = Buffer.from(qrBase64, "base64");
+
+        await sock.sendMessage(telefone,{
+            image: qrBuffer,
+            caption:"💰 Seu PIX ainda está válido."
+        });
+
+        await sock.sendMessage(telefone,{
+            text:"📋 PIX Copia e Cola"
+        });
+
+        await sock.sendMessage(telefone,{
+            text: inscricao.mercadopago_qr
+        });
+
+        return;
+    }
+
+    // PIX expirou
+    await gerarEEnviarPix(
+        sock,
+        telefone,
+        inscricao,
+        partida
+    );
+
+    return;
+}
 
 Assim que o pagamento for aprovado você será colocado automaticamente na lista.`);
 
