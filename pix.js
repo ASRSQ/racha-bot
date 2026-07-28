@@ -15,7 +15,7 @@ async function gerarPix(nome, telefone, valor) {
         external_reference: telefone,
 
         // Sempre enviar número
-        total_amount: Number(valor.toFixed(2)),
+       total_amount: valor.toFixed(2),
 
         payer: {
             email: "test_user_br@testuser.com",
@@ -26,7 +26,7 @@ async function gerarPix(nome, telefone, valor) {
 
             payments: [
                 {
-                    amount: Number(valor.toFixed(2)),
+                   amount: valor.toFixed(2),
 
                     payment_method: {
                         id: "pix",
