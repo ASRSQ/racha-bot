@@ -30,7 +30,7 @@ async function gerarPix(nome, telefone, valor) {
     });
 
     return {
-        payment_id: resposta.id,
+        payment_id: String(resposta.id),
         status: resposta.status,
         qr_code: resposta.point_of_interaction.transaction_data.qr_code,
         qr_code_base64: resposta.point_of_interaction.transaction_data.qr_code_base64,
